@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project OS Diagram</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+    
+    <!-- Load vis-network -->
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <style>
+        html, body { height: 100%; overflow: hidden; }
+        .app-container { height: 100vh; display: flex; flex-direction: column; }
+        #mynetwork {
+            flex: 1;
+            min-height: 0;
+            background: rgba(24, 24, 27, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            margin-bottom: 1rem;
+        }
+        .header { margin-bottom: 1rem !important; flex-shrink: 0; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <header class="header">
+            <div>
+                <h1>Project OS</h1>
+                <div class="nav-tabs" style="margin-top: 10px; display: flex; gap: 15px;">
+                    <a href="/" style="color: #a1a1aa; text-decoration: none; font-weight: 500;">Board (Kanban)</a>
+                    <a href="/map" style="color: #60a5fa; text-decoration: none; font-weight: bold; border-bottom: 2px solid #60a5fa; padding-bottom: 4px;">Project Map (Diagram)</a>
+                </div>
+            </div>
+            <div class="stats" style="flex-direction: column; align-items: flex-end; gap: 4px;">
+                <div style="display: flex; gap: 10px; font-size: 0.8rem;">
+                    <span style="color: #34d399;">Done</span>
+                    <span style="color: #fbbf24;">In Progress</span>
+                    <span style="color: #a1a1aa;">Planned</span>
+                </div>
+                <div>Total nodes: <span id="total-nodes">0</span></div>
+            </div>
+        </header>
+
+        <div id="mynetwork"></div>
+    </div>
+
+    <!-- Data Injection -->
+    <script>
+        const items = {{ items | tojson | safe }};
+        
+        // Colors mapping - ChatGPT Aesthetic
+        const colorDone = { background: '#10a37f', border: '#0ca37f', font: {color: '#ffffff', face: 'Inter'} };
+        const colorPartial = { background: '#d97706', border: '#b45309', font: {color: '#ffffff', face: 'Inter'} };
+        const colorTodo = { background: '#383838', border: '#4f4f4f', font: {color: '#ececf1', face: 'Inter'} };
+        
+        const nodes = new vis.DataSet([]);
+        const edges = new vis.DataSet([]);
+
+        // Central Node
+        nodes.add({
+            id: 'ROOT',
+            label: 'Project OS\n(Global Plan)',
+            shape: 'box',
+            color: { background: '#10a37f', border: '#0e906f' },
+            font: { color: 'white', size: 24, face: 'Outfit', bold: true },
+            margin: 20,
+            borderWidth: 2
+        });
+
+        // Icons for categories (using plain symbols since vis-network labels are plain text)
+        function getCatIcon(catName) {
+            let low = catName.toLowerCase();
+            if (low.includes('ui') || low.includes('interface')) return '[UI]';
+            if (low.includes('combat') || low.includes('enemy') || low.includes('battle')) return '[Combat]';
+            if (low.includes('world') || low.includes('map') || low.includes('generation')) return '[World]';
+            if (low.includes('inventory') || low.includes('loot') || low.includes('item')) return '[Inventory]';
+            if (low.includes('architecture') || low.includes('system')) return '[Systems]';
+            if (low.includes('player') || low.includes('movement')) return '[Player]';
+            return '[' + catName + ']';
+        }
+
+        // Extract Unique Categories
+        const categories = [...new Set(items.map(i => i.category || 'Общее'))];
+        
+        categories.forEach((cat, idx) => {
+            const catId = `CAT_${idx}`;
+            const icon = getCatIcon(cat);
+            nodes.add({
+                id: catId,
+                label: `${icon} ${cat}`,
+                shape: 'box',
+                color: { background: '#2f2f2f', border: '#52525b' },
+                font: { color: '#ececf1', size: 18, face: 'Outfit', bold: true },
+                margin: 15,
+                borderWidth: 2
+            });
+            // Connect category to ROOT via straightish edges
+            edges.add({ 
+                from: 'ROOT', 
+                to: catId, 
+                color: { color: '#52525b' }, 
+                width: 3,
+                smooth: { type: 'cubicBezier', forceDirection: 'horizontal', roundness: 0.4 }
+            });
+
+            // Find items for this category
+            const catItems = items.filter(i => (i.category || 'Общее') === cat);
+            catItems.forEach(item => {
+                let nodeStyle = colorTodo;
+                if (item.status === 'DONE') nodeStyle = colorDone;
+                if (item.status === 'PARTIAL') nodeStyle = colorPartial;
+
+                nodes.add({
+                    id: item.id,
+                    label: item.title,
+                    shape: 'box',
+                    color: { background: nodeStyle.background, border: nodeStyle.border },
+                    font: { color: nodeStyle.font.color, size: 14, face: nodeStyle.font.face },
+                    margin: { top: 12, bottom: 12, left: 16, right: 16 },
+                    borderWidth: 2,
+                    widthConstraint: { maximum: 250 }
+                });
+
+                edges.add({ 
+                    from: catId, 
+                    to: item.id, 
+                    color: { color: '#4f4f4f' }, 
+                    width: 2,
+                    arrows: { to: { enabled: true, scaleFactor: 0.5 } },
+                    smooth: { type: 'cubicBezier', forceDirection: 'horizontal', roundness: 0.4 }
+                });
+            });
+        });
+
+        document.getElementById('total-nodes').innerText = nodes.length;
+
+        const container = document.getElementById('mynetwork');
+        const data = { nodes: nodes, edges: edges };
+        
+        // Define options for a MIRO-like rigid feel (no bounce)
+        const options = {
+            layout: {
+                hierarchical: {
+                    enabled: true,
+                    direction: 'LR',       // Left-to-Right layout
+                    sortMethod: 'directed',
+                    levelSeparation: 350,  // Distance between columns
+                    nodeSpacing: 100,      // Vertical distance between nodes
+                    treeSpacing: 100
+                }
+            },
+            physics: false, // Turn off bounce completely! Essential for Miro feel.
+            interaction: {
+                dragNodes: true,
+                dragView: true,
+                zoomView: true,
+                hover: true
+            }
+        };
+
+        const network = new vis.Network(container, data, options);
+    </script>
+</body>
+</html>

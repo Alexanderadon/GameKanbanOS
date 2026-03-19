@@ -1,0 +1,11 @@
+title,status,category,description,priority,assignee,due_date,tags,progress
+"Build auth middleware",TODO,Architecture,"Add API key middleware for write endpoints",High,Alex,2026-03-25,"{backend,security,api}",0
+"Fix drag and drop status sync",PARTIAL,UI,"Card sometimes reverts after fast drag between columns",Medium,Anna,2026-03-22,"{frontend,bug,kanban}",45
+"Add board smoke tests",TODO,QA,"Cover add/update/delete and quick-add flow",High,Max,2026-03-28,"{tests,api,ui}",0
+"Implement category normalization",TODO,Architecture,"Prevent duplicate category names like UI/ui/Ui",Medium,,,"{data,cleanup}",0
+"Write README for deploy",DONE,Docs,"Document env vars and start commands",Low,Ivan,2026-03-18,"{docs,devops}",100
+"Optimize /api/items response",PARTIAL,Backend,"Add ordering and lightweight payload fields",Medium,Alex,2026-03-24,"{backend,performance}",60
+"Improve map view labels",TODO,UI,"Show status + priority badges on diagram nodes",Low,Anna,2026-03-30,"{ui,diagram}",0
+"Add RLS policies",TODO,Security,"Enable row level security and service role policy",Critical,Max,2026-03-21,"{security,supabase,rls}",0
+"Migrate tags to array",DONE,Database,"Store tags as text[] and normalize input",High,Alex,2026-03-18,"{database,migration,tags}",100
+"Create CSV import template",DONE,Ops,"Prepared CSV with valid headers for Supabase upload",Low,Ivan,2026-03-18,"{ops,csv,supabase}",100

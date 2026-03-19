@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project OS Kanban</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <header class="header">
+            <div>
+                <h1>Project OS</h1>
+                <div class="nav-tabs" style="margin-top: 10px; display: flex; gap: 15px;">
+                    <a href="/" style="color: #60a5fa; text-decoration: none; font-weight: bold; border-bottom: 2px solid #60a5fa; padding-bottom: 4px;">Board (Kanban)</a>
+                    <a href="/map" style="color: #a1a1aa; text-decoration: none; font-weight: 500;">Project Map (Diagram)</a>
+                </div>
+            </div>
+            <div class="stats">
+                <span id="total-tasks">0</span> Tasks
+            </div>
+        </header>
+
+        <!-- Studio Stats Strip -->
+        <div class="stats-strip" id="stats-strip">
+            <div class="stat-item" id="stat-done"><span class="stat-num">0</span><span class="stat-label"><i data-lucide="check-circle-2" class="stat-icon done-icon"></i> Done</span></div>
+            <div class="stat-item" id="stat-partial"><span class="stat-num">0</span><span class="stat-label"><i data-lucide="loader" class="stat-icon partial-icon"></i> In Progress</span></div>
+            <div class="stat-item" id="stat-todo"><span class="stat-num">0</span><span class="stat-label"><i data-lucide="clipboard-list" class="stat-icon todo-icon"></i> Planned</span></div>
+            <div class="stat-progress-wrap">
+                <div class="stat-progress-bar" id="stat-progress-bar"></div>
+            </div>
+            <div class="stat-item" style="margin-left: auto;"><span class="stat-num" id="stat-pct">0%</span><span class="stat-label"><i data-lucide="trending-up" class="stat-icon"></i> Completion</span></div>
+        </div>
+
+        <!-- V2 Studio Feature: Filters Bar -->
+        <div class="filters-bar">
+            <div style="position:relative; display:flex; align-items:center;">
+                <i data-lucide="search" style="position:absolute; left:9px; width:14px; height:14px; color:var(--text-muted); pointer-events:none;"></i>
+                <input type="text" id="search-input" placeholder="Search..." style="padding-left:30px;">
+            </div>
+            <select id="filter-category">
+                <option value="">All categories</option>
+                <!-- JS will auto-populate this from DB -->
+            </select>
+            <select id="filter-priority">
+                <option value="">All priorities</option>
+                <option value="Critical">Critical</option>
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
+            </select>
+            <select id="filter-assignee">
+                <option value="">All assignees</option>
+                <!-- JS will auto-populate this from DB -->
+            </select>
+            <select id="sort-select" style="background: var(--bg-surface); border: 1px solid var(--border-color); color: var(--text-main);">
+                <option value="default">Default sorting</option>
+                <option value="alphabetical">Alphabetical</option>
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+            </select>
+            <button id="clear-filters" class="btn" style="background: var(--bg-surface); border: 1px solid var(--border-color); color: var(--text-muted);">Reset</button>
+        </div>
+
+        <main class="board-container" id="board-container">
+            <!-- Swimlanes will be injected here via JS -->
+        </main>
+    </div>
+
+    <!-- V2 Studio Feature: Task Detail Modal -->
+    <div id="task-modal" class="modal-overlay" style="display: none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="modal-title"></h2>
+                <button id="modal-close" class="modal-close"><i data-lucide="x" style="width:20px;height:20px;"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-meta">
+                    <div class="meta-item">
+                        <label>Приоритет:</label>
+                        <select id="modal-priority"></select>
+                    </div>
+                    <div class="meta-item">
+                        <label>Исполнитель:</label>
+                        <div class="qa-category-switch">
+                            <button id="modal-assignee-mode-existing" type="button" class="qa-mode-btn active">Existing</button>
+                            <button id="modal-assignee-mode-custom" type="button" class="qa-mode-btn">Custom</button>
+                        </div>
+                        <select id="modal-assignee-select">
+                            <option value="">Unassigned</option>
+                        </select>
+                        <input type="text" id="modal-assignee-custom" placeholder="Enter a new assignee..." style="display:none;">
+                    </div>
+                    <div class="meta-item">
+                        <label>Дедлайн:</label>
+                        <input type="date" id="modal-due-date">
+                    </div>
+                    <div class="meta-item">
+                        <label>Прогресс: <span id="modal-progress-val">0</span>%</label>
+                        <input type="range" id="modal-progress" min="0" max="100" step="5" value="0" style="margin-top: 5px;">
+                    </div>
+                    <div class="meta-item" style="flex: 100%;">
+                        <label>Теги:</label>
+                        <div id="modal-tags" class="modal-tags-editor">
+                            <div id="modal-tags-list" class="modal-tags-list"></div>
+                            <input type="text" id="modal-tag-input" class="modal-tag-input" placeholder="Add tag and press Enter">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-description">
+                    <label>Описание / ТЗ:</label>
+                    <textarea id="modal-desc" rows="6"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer" style="justify-content: space-between;">
+                <button id="modal-delete" class="btn btn-danger" style="display:flex;align-items:center;gap:5px;">
+                    <i data-lucide="trash-2" style="width:15px;height:15px;"></i> Удалить
+                </button>
+                <button id="modal-save" class="btn btn-primary">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- LS Save Indicator Toast -->
+    <div id="ls-indicator"><span class="dot"></span> Сохранено локально</div>
+
+    <!-- Quick Add Card Modal -->
+    <div id="quick-add-modal" class="modal-overlay" style="display: none;">
+        <div class="modal qa-modal">
+            <div class="modal-header">
+                <h2>+ Quick Add Task</h2>
+                <button id="qa-close" class="modal-close"><i data-lucide="x" style="width:20px;height:20px;"></i></button>
+            </div>
+            <div class="modal-body qa-modal-body">
+                <textarea id="qa-title" class="qa-input qa-title-input" placeholder="Task title..." rows="1"></textarea>
+                <div class="qa-grid">
+                    <div class="meta-item">
+                        <label>Category:</label>
+                        <div class="qa-category-switch">
+                            <button id="qa-mode-existing" type="button" class="qa-mode-btn active">Existing</button>
+                            <button id="qa-mode-custom" type="button" class="qa-mode-btn">Custom</button>
+                        </div>
+                        <select id="qa-category-select" class="qa-input">
+                            <option value="General">General</option>
+                        </select>
+                        <input type="text" id="qa-category-custom" class="qa-input" placeholder="Enter a new category..." style="display:none;">
+                        <div id="qa-category-hint" class="qa-field-hint">Choose one of the existing categories.</div>
+                    </div>
+                    <div class="meta-item">
+                        <label>Priority:</label>
+                        <select id="qa-priority" class="qa-input">
+                            <option value="Medium">Medium</option>
+                            <option value="High">High</option>
+                            <option value="Critical">Critical</option>
+                            <option value="Low">Low</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="qa-grid">
+                    <div class="meta-item">
+                        <label>Status:</label>
+                        <select id="qa-status" class="qa-input">
+                            <option value="TODO">TODO</option>
+                            <option value="PARTIAL">PARTIAL</option>
+                            <option value="DONE">DONE</option>
+                        </select>
+                    </div>
+                    <div class="meta-item">
+                        <label>Assignee:</label>
+                        <div class="qa-category-switch">
+                            <button id="qa-assignee-mode-existing" type="button" class="qa-mode-btn active">Existing</button>
+                            <button id="qa-assignee-mode-custom" type="button" class="qa-mode-btn">Custom</button>
+                        </div>
+                        <select id="qa-assignee-select" class="qa-input">
+                            <option value="">Unassigned</option>
+                        </select>
+                        <input type="text" id="qa-assignee-custom" class="qa-input" placeholder="Enter a new assignee..." style="display:none;">
+                        <div id="qa-assignee-hint" class="qa-field-hint">Choose one of the existing assignees.</div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer qa-footer">
+                <span style="font-size: 0.8rem; color: var(--text-muted); margin-right: auto;">Enter - add card, Shift+Enter - new line</span>
+                <button id="qa-save" class="btn btn-primary">+ Add</button>
+            </div>
+        </div>
+    </div>
+
+<!-- Trash Drop Zone (drag card here to delete) -->
+    <div id="trash-zone">
+        <i data-lucide="trash-2"></i>
+        <span>Перетащите сюда для удаления</span>
+    </div>
+
+    <!-- FAB Quick Add Button -->
+    <button id="quick-add-fab"><i data-lucide="plus" style="width:18px;height:18px;"></i> Быстро добавить <span class="fab-hint">N</span></button>
+
+    <!-- Preloaded data for initial render -->
+    <script>
+        window.INITIAL_ITEMS = {{ items | tojson | safe }};
+    </script>
+    <script src="/static/script.js"></script>
+</body>
+</html>
+
+
+
